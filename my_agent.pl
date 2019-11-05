@@ -18,10 +18,9 @@
 :- dynamic(orientation/1).
 :- dynamic(hasArrow/1).
 :- dynamic(visited/2).
-:- dynamic(visited/1).
-:- dynamic(noPit/2).
+:- dynamic(safeUnvisited/2).
 :- dynamic(noPit/1).
-:- dynamic(breeze/2).
+:- dynamic(isNotPit/1).
 :- dynamic(breeze/1).
 :- dynamic(hasGold/1).
 :- dynamic(updateOrientation/1).
@@ -91,40 +90,29 @@ updateAgent(NextAction,Percept) :-
 updateSafe(Percept) :- 
   currentPos(X,Y),
   Percept = [no,no,no,no,no],
+  (safeAssert(visited(X,Y))),
   (safeAssert(safe(X,Y));safeAssert(safe(X,Y+1));safeAssert(safe(X,Y-1));safeAssert(safe(X+1,Y));safeAssert(safe(X-1,Y));format('')).
-%% updateSafe(Percept) :- 
-%%   currentPos(X,Y),
-%%   Percept = [no,no,no,no,no],
-%%   safeAssert(safe(X+1,Y)).
-%% updateSafe(Percept) :- 
-%%   currentPos(X,Y),
-%%   Percept = [no,no,no,no,no],
-%%   safeAssert(safe(X-1,Y)).
-%% updateSafe(Percept) :- 
-%%   currentPos(X,Y),
-%%   Percept = [no,no,no,no,no],
-%%   safeAssert(safe(X,Y+1)).
-%% updateSafe(Percept) :- 
-%%   currentPos(X,Y),
-%%   Percept = [no,no,no,no,no],
-%%   safeAssert(safe(X,Y-1)).
 
-neighbors(X,Y,X,Y1) :-
-  Y1 is Y+1. 
-neighbors(X,Y,X,Y1) :-
+safeUnvisited(X,Y) :- 
+  safe(X,Y),
+  \+visited(X,Y). 
+
+neighbors([X,Y],[X1,Y]) :-
+  X1 is X-1.
+neighbors([X,Y],[X1,Y]) :-
+  X1 is X+1.
+neighbors([X,Y],[X,Y1]) :-
   Y1 is Y-1.
-neighbors(X,Y,X1,Y) :-
-  X1 is X+1. 
-neighbors(X,Y,X1,Y) :-
-  X1 is X-1. 
+neighbors([X,Y],[X,Y1]) :-
+  Y1 is Y+1.
 
-
-noPit(X,Y) :- visited(X,Y).
-noPit(X,Y) :- 
-    noPit(X1,Y1),
-    \+breeze(X1,Y1),
-    visited(X1,Y1).
-
+% if coordinate is not a pit: assert that it is not a pit 
+isNotPit(P1) :- 
+  visited(P1).
+isNotPit(P1) :- 
+  neighbors(P1,P2),
+  \+breeze(P2),
+  visited(P2).
 
 
 
