@@ -13,11 +13,11 @@
 
 % ok
 % safe 
-:- dynamic(currentPos/2).
-:- dynamic(prevPos/2).
+:- dynamic(currentPos/1).
+:- dynamic(prevPos/1).
 :- dynamic(orientation/1).
 :- dynamic(hasArrow/1).
-:- dynamic(visited/2).
+:- dynamic(visited/1).
 :- dynamic(safeUnvisited/2).
 :- dynamic(noPit/1).
 :- dynamic(isNotPit/1).
@@ -25,17 +25,18 @@
 :- dynamic(hasGold/1).
 :- dynamic(updateOrientation/1).
 :- dynamic(updateCoordinate/1).
-:- dynamic(safe/2).
+:- dynamic(safe/1).
 :- dynamic(pit/2).
 :- dynamic(neighbors/2).
 init_agent:-
   resetAgent(),
   assert(pit(_,_)),
   retract(pit(1,1)),
-	asserta(currentPos(1,1)),
-	asserta(prevPos(1,1)),
-	asserta(orientation(0)),
-  asserta(path([goforward,turnleft,goforward,goforward,grab,turnleft,turnleft,goforward])),
+	assert(currentPos([1,1])),
+  assert(visited([1,1])),
+	assert(prevPos([1,1])),
+	assert(orientation(0)),
+  assert(path([goforward,turnleft,goforward,goforward,grab,turnleft,turnleft,goforward])),
 	format('\n=====================================================\n'),
 	format('This is init_agent:\n\tIt gets called once, use it for your initialization\n\n'),
 	format('=====================================================\n\n').
@@ -74,6 +75,26 @@ run_agent(Percept, Action ):-
   display_world,   
   format(''),
   format('=====================================================\n\n').
+
+%% run_agent(Percept, Action ):-
+%%   path(P),
+%%   next_action(P,Action),
+%%   updateAgent(Action,Percept),
+%%   format('\n=====================================================\n'),
+%%   format('Next action \n'),
+%%   display_world,   
+%%   format(''),
+%%   format('=====================================================\n\n').
+
+%% run_agent(Percept, Action ):-
+%%   path(P),
+%%   next_action(P,Action),
+%%   updateAgent(Action,Percept),
+%%   format('\n=====================================================\n'),
+%%   format('Next action \n'),
+%%   display_world,   
+%%   format(''),
+%%   format('=====================================================\n\n').
  
 
 
@@ -81,27 +102,27 @@ run_agent(Percept, Action ):-
 
 
 updateAgent(NextAction,Percept) :- 
-  (updateSafe(Percept);format('')),
-  (updateVisited(Percept);format('')),
+  %% (updateSafe(Percept);format('')),
+  %% (updateVisited(Percept);format('')),
   updateOrientation(NextAction),
   updateCoordinate(NextAction).
 
 
 
 updateSafe(Percept) :- 
-  currentPos(X,Y),
-  Percept = [no,no,no,no,no],
-  (safeAssert(visited(X,Y));format('')),
-  (safeAssert(safe(X,Y));safeAssert(safe(X,Y+1));safeAssert(safe(X,Y-1));safeAssert(safe(X+1,Y));safeAssert(safe(X-1,Y));format('')).
+  currentPos([X,Y]),
+  neighbors([X,Y],[X1,Y1]).
 
-updateVisited(Percept) :- 
-  currentPos(X,Y),
-  Percept = [_,_,_,no,_],
-  (safeAssert(visited(X,Y));format('')).
+assertOnce(Fact):- 
+    \+( Fact ),!,         % \+ is a NOT operator.
+    assert(Fact).%% updateVisited(Percept) :- 
+%%   currentPos([X,Y]),
+%%   Percept = [_,_,_,no,_],
+%%   (safeAssert(visited([X,Y]));format('')).
 
-safeUnvisited(X,Y) :- 
-  safe(X,Y),
-  \+visited(X,Y). 
+%% safeUnvisited(X,Y) :- 
+%%   safe(X,Y),
+%%   \+visited(X,Y). 
 
 neighbors([X,Y],[X1,Y]) :-
   X1 is X-1.
@@ -133,55 +154,51 @@ updateOrientation(NextAction) :-
   retract(orientation(Orient)),
   assert(orientation(NewOrientation)).
 
-
 updateCoordinate(NextAction) :- 
   orientation(Orient),
   (NextAction = goforward -> updateCoordinateAux(Orient,NextAction); format("statement \n")).
 
 updateCoordinateAux(Orientation,NextAction) :- 
   Orientation =:= 0,
-  currentPos(X,Y),
+  currentPos([X,Y]),
   (NextAction = goforward -> NewX = X+1, NewY = Y; 
     NewX = X, NewY = Y),
-  retract(currentPos(X,Y)),
-  assert(currentPos(NewX,NewY)),
+  retract(currentPos([X,Y])),
+  assert(currentPos([NewX,NewY])),
   coordPrint(NewX,NewY,NextAction,0).
 updateCoordinateAux(Orientation,NextAction) :- 
   Orientation =:= 90,
-  currentPos(X,Y),
-  (NextAction = goforward -> NewX = X, NewY = Y+1; 
+  currentPos([X,Y]),
+  (NextAction = goforward -> NewX =   X, NewY = Y+1; 
     NewX = X, NewY = Y),
-  retract(currentPos(X,Y)),
-  assert(currentPos(NewX,NewY)),
+  retract(currentPos([X,Y])),
+  assert(currentPos([NewX,NewY])),
   coordPrint(NewX,NewY,NextAction,90).
 updateCoordinateAux(Orientation,NextAction) :- 
   Orientation =:= 180, 
-  currentPos(X,Y),
+  currentPos([X,Y]),
   (NextAction = goforward -> NewX = X-1, NewY = Y+1; 
     NewX = X, NewY = Y),
-  retract(currentPos(X,Y)),
-  assert(currentPos(NewX,NewY)),
+  retract(currentPos([X,Y])),
+  assert(currentPos([NewX,NewY])),
   coordPrint(NewX,NewY,NextAction,180).
 updateCoordinateAux(Orientation,NextAction) :- 
   Orientation =:= 270,
-  currentPos(X,Y),
+  currentPos([X,Y]),
   (NextAction = goforward -> NewX = X, NewY = Y-1; 
     NewX = X, NewY = Y),
-  retract(currentPos(X,Y)),
-  assert(currentPos(NewX,NewY)),
+  retract(currentPos([X,Y])),
+  assert(currentPos([NewX,NewY])),
   coordPrint(NewX,NewY,NextAction,270).
 coordPrint(X,Y,NextAction,Orientation) :- 
   format("Next Action is ~w \n", [NextAction]),
   format("Orientation is ~d \n", [Orientation]),
   format("New coordinate is (~d,~d)", [X,Y]).
-
 resetAgent() :- 
-  retractall(currentPos(X,Y)),
+  retractall(currentPos([X,Y])),
   retractall(prevPos(A,B)),
   retractall(orientation(C)).
-safeAssert(Fact):- 
-    \+( Fact ),!,         % \+ is a NOT operator.
-    assert(Fact).
+
 
 
 %% updateOrientation(NextAction) :- 
