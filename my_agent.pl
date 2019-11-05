@@ -82,6 +82,7 @@ run_agent(Percept, Action ):-
 
 updateAgent(NextAction,Percept) :- 
   (updateSafe(Percept);format('')),
+  (updateVisited(Percept);format('')),
   updateOrientation(NextAction),
   updateCoordinate(NextAction).
 
@@ -90,8 +91,13 @@ updateAgent(NextAction,Percept) :-
 updateSafe(Percept) :- 
   currentPos(X,Y),
   Percept = [no,no,no,no,no],
-  (safeAssert(visited(X,Y))),
+  (safeAssert(visited(X,Y));format('')),
   (safeAssert(safe(X,Y));safeAssert(safe(X,Y+1));safeAssert(safe(X,Y-1));safeAssert(safe(X+1,Y));safeAssert(safe(X-1,Y));format('')).
+
+updateVisited(Percept) :- 
+  currentPos(X,Y),
+  Percept = [_,_,_,no,_],
+  (safeAssert(visited(X,Y));format('')).
 
 safeUnvisited(X,Y) :- 
   safe(X,Y),
