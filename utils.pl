@@ -44,3 +44,5 @@ maybe(P):-
 % gets randomly an element E of list L
 random_member(E,L):- 
              length(L,N), random2(N,K), nth0(K,L,E).
+
+

@@ -13,12 +13,15 @@
 
 % ok
 % safe 
+:- load_files([utils]).  % Basic utilities
+:- dynamic(peekForward/0).
 :- dynamic(currentPos/1).
 :- dynamic(prevPos/1).
 :- dynamic(orientation/1).
 :- dynamic(hasArrow/1).
 :- dynamic(visited/1).
 :- dynamic(safeUnvisited/2).
+:- dynamic(updateSafe/0).
 :- dynamic(noPit/1).
 :- dynamic(isNotPit/1).
 :- dynamic(breeze/1).
@@ -32,11 +35,12 @@ init_agent:-
   resetAgent(),
   assert(pit(_,_)),
   retract(pit(1,1)),
+  assert(safe([1,1])),
 	assert(currentPos([1,1])),
   assert(visited([1,1])),
 	assert(prevPos([1,1])),
 	assert(orientation(0)),
-  assert(path([goforward,turnleft,goforward,goforward,grab,turnleft,turnleft,goforward])),
+  assert(path([goforward,turnleft])),
 	format('\n=====================================================\n'),
 	format('This is init_agent:\n\tIt gets called once, use it for your initialization\n\n'),
 	format('=====================================================\n\n').
@@ -66,42 +70,65 @@ next_action([H|T], H):-
   assert(path(T)).
 %run_agent(Percept,Action):-
 % Percept : [_,_,_,_,_]
-run_agent(Percept, Action ):-
-  path(P),
-  next_action(P,Action),
-  updateAgent(Action,Percept),
+
+% if the spot is safe: assert cells next to it are safe 
+run_agent([no,no,no,no,no], goforward):-
+  currentPos([X,Y]),
   format('\n=====================================================\n'),
   format('Next action \n'),
   display_world,   
   format(''),
-  format('=====================================================\n\n').
+  format('=====================================================\n\n'),
+  updateSafe,
+  updateCoordinate(goforward).
+% if the spot has a breeze: 
+%   if you can move forward and you won't die, move forward. 
+run_agent([_,yes,no,no,no], Action):-
+  currentPos([X,Y]),
+  peekForward,
+  random_move(Action),
+  format('\n=====================================================\n'),
+  format('Next action \n'),
+  display_world,   
+  format(''),
+  format('=====================================================\n\n'),
+  updateCoordinate(Action).
+% if the spot has a breeze: 
+%   if you die if you move forward, turn. 
+run_agent([_,yes,no,no,no], Action):-
+  currentPos([X,Y]),
+  \+peekForward,
+  random_turn(Action),
+  format('\n=====================================================\n'),
+  format('Next action \n'),
+  display_world,   
+  format(''),
+  format('=====================================================\n\n'),
+  updateCoordinate(Action).
+% if there is gold, grab the gold. 
+run_agent([_,_,yes,_,_], grab):-
+  currentPos([X,Y]),
+  format('\n=====================================================\n'),
+  format('Next action \n'),
+  display_world,   
+  format(''),
+  format('=====================================================\n\n'),
+  updateCoordinate(grab).
+% if you bump into a wall: turn. 
+run_agent([_,_,yes,_,_], grab):-
+  currentPos([X,Y]),
+  format('\n=====================================================\n'),
+  format('Next action \n'),
+  display_world,   
+  format(''),
+  format('=====================================================\n\n'),
+  updateCoordinate(grab).
 
-%% run_agent(Percept, Action ):-
-%%   path(P),
-%%   next_action(P,Action),
-%%   updateAgent(Action,Percept),
-%%   format('\n=====================================================\n'),
-%%   format('Next action \n'),
-%%   display_world,   
-%%   format(''),
-%%   format('=====================================================\n\n').
-
-%% run_agent(Percept, Action ):-
-%%   path(P),
-%%   next_action(P,Action),
-%%   updateAgent(Action,Percept),
-%%   format('\n=====================================================\n'),
-%%   format('Next action \n'),
-%%   display_world,   
-%%   format(''),
-%%   format('=====================================================\n\n').
- 
 
 
 
 
-
-updateAgent(NextAction,Percept) :- 
+updateAgent(Percept,Action) :- 
   %% (updateSafe(Percept);format('')),
   %% (updateVisited(Percept);format('')),
   updateOrientation(NextAction),
@@ -109,29 +136,8 @@ updateAgent(NextAction,Percept) :-
 
 
 
-updateSafe(Percept) :- 
-  currentPos([X,Y]),
-  neighbors([X,Y],[X1,Y1]).
 
-assertOnce(Fact):- 
-    \+( Fact ),!,         % \+ is a NOT operator.
-    assert(Fact).%% updateVisited(Percept) :- 
-%%   currentPos([X,Y]),
-%%   Percept = [_,_,_,no,_],
-%%   (safeAssert(visited([X,Y]));format('')).
 
-%% safeUnvisited(X,Y) :- 
-%%   safe(X,Y),
-%%   \+visited(X,Y). 
-
-neighbors([X,Y],[X1,Y]) :-
-  X1 is X-1.
-neighbors([X,Y],[X1,Y]) :-
-  X1 is X+1.
-neighbors([X,Y],[X,Y1]) :-
-  Y1 is Y-1.
-neighbors([X,Y],[X,Y1]) :-
-  Y1 is Y+1.
 
 % if coordinate is not a pit: assert that it is not a pit 
 isNotPit(P1) :- 
@@ -142,6 +148,15 @@ isNotPit(P1) :-
   visited(P2).
 
 
+%% peekForward([X,Y],0):-
+%%   X1 is X+1,
+%%   safe([X1,Y]).
+%% peekForward:-
+%%   safe([X,Y+1]).
+%% peekForward([X,Y],180):-
+%%   safe([X-1,Y]).
+%% peekForward([X,Y],270) :-
+%%   safe([X,Y-1]).
 
 updateOrientation(NextAction) :- 
   orientation(Orient),
@@ -153,6 +168,20 @@ updateOrientation(NextAction) :-
   format("New orientation is ~d \n", [NewOrientation]),
   retract(orientation(Orient)),
   assert(orientation(NewOrientation)).
+
+neighbors([X,Y],[X1,Y]) :-
+  X1 is X-1.
+neighbors([X,Y],[X1,Y]) :-
+  X1 is X+1.
+neighbors([X,Y],[X,Y1]) :-
+  Y1 is Y-1.
+neighbors([X,Y],[X,Y1]) :-
+  Y1 is Y+1.
+
+updateSafe :- 
+  currentPos([X,Y]),
+  neighbors([X,Y],Z),
+  assertOnce(safe(Z)).
 
 updateCoordinate(NextAction) :- 
   orientation(Orient),
@@ -199,23 +228,20 @@ resetAgent() :-
   retractall(prevPos(A,B)),
   retractall(orientation(C)).
 
+assertOnce(Fact):-
+    \+( Fact ),!,         % \+ is a NOT operator.
+    assert(Fact).
+assertOnce(_).
 
-
-%% updateOrientation(NextAction) :- 
-%%   orientation(Orient),
-%%   (NextAction = goforward -> )
-
-% NewOrientation = (Orient - 90) mod 360)
-% NewOrientation  = (Orient + 90) mod 360
-
-
-  
-%% updateOrientation(Blah) :-
-%%   format('Nothing\n'),
-%%   format('\n Action is ~w \n',[Blah]),
-%%   orientation(CurrentOrientation),
-%%   format('\n Orientation is ~w \n', [CurrentOrientation]),
-%%   retract(CurrentOrientation),
-%%   assert(CurrentOrientation).
-
-
+random_turn(E) :- 
+  random2(100,Value),
+  (
+    (E = turnleft , Value>50);
+    (E = turnright , Value<50)
+  ).
+random_move(E) :- 
+  random2(100,Value),
+  (
+    (E = turnleft , Value>50);
+    (E = goforward , Value<50)
+  ).
