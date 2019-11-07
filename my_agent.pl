@@ -36,6 +36,8 @@ init_agent:-
   assert(pit(_,_)),
   retract(pit(1,1)),
   assert(safe([1,1])),
+  assert(safe([1,2])),
+  assert(safe([2,1])),
 	assert(currentPos([1,1])),
   assert(visited([1,1])),
 	assert(prevPos([1,1])),
@@ -70,61 +72,35 @@ next_action([H|T], H):-
   assert(path(T)).
 %run_agent(Percept,Action):-
 % Percept : [_,_,_,_,_]
-
 % if the spot is safe: assert cells next to it are safe 
 run_agent([no,no,no,no,no], goforward):-
   currentPos([X,Y]),
-  format('\n=====================================================\n'),
-  format('Next action \n'),
   display_world,   
-  format(''),
-  format('=====================================================\n\n'),
   updateSafe,
   updateCoordinate(goforward).
 % if the spot has a breeze: 
 %   if you can move forward and you won't die, move forward. 
 run_agent([_,yes,no,no,no], Action):-
+  retractall(peekForward),
   currentPos([X,Y]),
   peekForward,
   random_move(Action),
-  format('\n=====================================================\n'),
-  format('Next action \n'),
   display_world,   
-  format(''),
-  format('=====================================================\n\n'),
   updateCoordinate(Action).
 % if the spot has a breeze: 
 %   if you die if you move forward, turn. 
-run_agent([_,yes,no,no,no], Action):-
+run_agent([_,yes,no,_,no], Action):-
+  retractall(peekForward),
   currentPos([X,Y]),
   \+peekForward,
   random_turn(Action),
-  format('\n=====================================================\n'),
-  format('Next action \n'),
   display_world,   
-  format(''),
-  format('=====================================================\n\n'),
   updateCoordinate(Action).
 % if there is gold, grab the gold. 
 run_agent([_,_,yes,_,_], grab):-
   currentPos([X,Y]),
-  format('\n=====================================================\n'),
-  format('Next action \n'),
   display_world,   
-  format(''),
-  format('=====================================================\n\n'),
   updateCoordinate(grab).
-% if you bump into a wall: turn. 
-run_agent([_,_,yes,_,_], grab):-
-  currentPos([X,Y]),
-  format('\n=====================================================\n'),
-  format('Next action \n'),
-  display_world,   
-  format(''),
-  format('=====================================================\n\n'),
-  updateCoordinate(grab).
-
-
 
 
 
@@ -148,11 +124,31 @@ isNotPit(P1) :-
   visited(P2).
 
 
-%% peekForward([X,Y],0):-
-%%   X1 is X+1,
-%%   safe([X1,Y]).
-%% peekForward:-
-%%   safe([X,Y+1]).
+
+peekForward:-
+  orientation(O),
+  O =:= 0, 
+  currentPos([X,Y]),
+  X1 is X+1,
+  safe([X1,Y]).
+peekForward:-
+  orientation(O),
+  O =:= 90 ,
+  currentPos([X,Y]),
+  Y1 is Y+1,
+  safe([X,Y1]).
+peekForward:-
+  orientation(O),
+  O =:= 180, 
+  currentPos([X,Y]),
+  X1 is X-1,
+  safe([X1,Y]).
+peekForward:-
+  orientation(O),
+  O =:= 270, 
+  currentPos([X,Y]),
+  Y1 is Y-1,
+  safe([X,Y1]).
 %% peekForward([X,Y],180):-
 %%   safe([X-1,Y]).
 %% peekForward([X,Y],270) :-
@@ -166,7 +162,7 @@ updateOrientation(NextAction) :-
    NewOrientation = Orient)),
   format("NextAction is ~w \n", [NextAction]), 
   format("New orientation is ~d \n", [NewOrientation]),
-  retract(orientation(Orient)),
+  retractall(orientation(Orient)),
   assert(orientation(NewOrientation)).
 
 neighbors([X,Y],[X1,Y]) :-
@@ -185,38 +181,41 @@ updateSafe :-
 
 updateCoordinate(NextAction) :- 
   orientation(Orient),
-  (NextAction = goforward -> updateCoordinateAux(Orient,NextAction); format("statement \n")).
+  currentPos([X,Y]),
+  (NextAction = goforward -> updateCoordinateAux(Orient,NextAction); format("statement \n")),
+  (retractall(prevPos(Z)); format("")),
+  (assert(prevPos([X,Y])); format("")).
 
 updateCoordinateAux(Orientation,NextAction) :- 
   Orientation =:= 0,
   currentPos([X,Y]),
-  (NextAction = goforward -> NewX = X+1, NewY = Y; 
+  (NextAction = goforward -> NewX is X+1, NewY is Y; 
     NewX = X, NewY = Y),
-  retract(currentPos([X,Y])),
+  retractall(currentPos([X,Y])),
   assert(currentPos([NewX,NewY])),
   coordPrint(NewX,NewY,NextAction,0).
 updateCoordinateAux(Orientation,NextAction) :- 
   Orientation =:= 90,
   currentPos([X,Y]),
-  (NextAction = goforward -> NewX =   X, NewY = Y+1; 
+  (NextAction = goforward -> NewX is X, NewY is Y+1; 
     NewX = X, NewY = Y),
-  retract(currentPos([X,Y])),
+  retractall(currentPos([X,Y])),
   assert(currentPos([NewX,NewY])),
   coordPrint(NewX,NewY,NextAction,90).
 updateCoordinateAux(Orientation,NextAction) :- 
   Orientation =:= 180, 
   currentPos([X,Y]),
-  (NextAction = goforward -> NewX = X-1, NewY = Y+1; 
+  (NextAction = goforward -> NewX is X-1, NewY is Y+1; 
     NewX = X, NewY = Y),
-  retract(currentPos([X,Y])),
+  retractall(currentPos([X,Y])),
   assert(currentPos([NewX,NewY])),
   coordPrint(NewX,NewY,NextAction,180).
 updateCoordinateAux(Orientation,NextAction) :- 
   Orientation =:= 270,
   currentPos([X,Y]),
-  (NextAction = goforward -> NewX = X, NewY = Y-1; 
+  (NextAction = goforward -> NewX is X, NewY is Y-1; 
     NewX = X, NewY = Y),
-  retract(currentPos([X,Y])),
+  retractall(currentPos([X,Y])),
   assert(currentPos([NewX,NewY])),
   coordPrint(NewX,NewY,NextAction,270).
 coordPrint(X,Y,NextAction,Orientation) :- 
@@ -242,6 +241,6 @@ random_turn(E) :-
 random_move(E) :- 
   random2(100,Value),
   (
-    (E = turnleft , Value>50);
-    (E = goforward , Value<50)
+    (E = goforward , Value>50);
+    (E = turnleft , Value<50)
   ).
