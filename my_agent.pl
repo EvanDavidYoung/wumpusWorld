@@ -15,9 +15,12 @@
 % safe 
 :- load_files([utils]).  % Basic utilities
 :- dynamic(peekForward/0).
+:- dynamic(peekForward/1).
 :- dynamic(currentPos/1).
 :- dynamic(prevPos/1).
 :- dynamic(orientation/1).
+:- dynamic(wumpusAlive/0).
+:- dynamic(/1).
 :- dynamic(hasArrow/1).
 :- dynamic(visited/1).
 :- dynamic(safeUnvisited/2).
@@ -36,6 +39,7 @@ init_agent:-
   assert(pit(_,_)),
   retract(pit(1,1)),
   assert(safe([1,1])),
+  assert(wumpusAlive),
   assert(safe([1,2])),
   assert(safe([2,1])),
 	assert(currentPos([1,1])),
@@ -80,22 +84,22 @@ run_agent([no,no,no,no,no], goforward):-
   updateCoordinate(goforward).
 % if the spot has a breeze: 
 %   if you can move forward and you won't die, move forward. 
-run_agent([_,yes,no,no,no], Action):-
-  retractall(peekForward),
+run_agent([_,yes,no,no,no], goforward):-
   currentPos([X,Y]),
   peekForward,
-  random_move(Action),
   display_world,   
-  updateCoordinate(Action).
+  updateCoordinate(goforward).
 % if the spot has a breeze: 
 %   if you die if you move forward, turn. 
 run_agent([_,yes,no,_,no], Action):-
-  retractall(peekForward),
   currentPos([X,Y]),
   \+peekForward,
   random_turn(Action),
   display_world,   
+  updateOrientation(Action),
   updateCoordinate(Action).
+% if the spot has a stench and wumpus is alive: 
+
 % if there is gold, grab the gold. 
 run_agent([_,_,yes,_,_], grab):-
   currentPos([X,Y]),
@@ -141,14 +145,14 @@ peekForward:-
   orientation(O),
   O =:= 180, 
   currentPos([X,Y]),
-  X1 is X-1,
-  safe([X1,Y]).
+  Y1 is Y-1,
+  safe([X,Y1]).
 peekForward:-
   orientation(O),
   O =:= 270, 
   currentPos([X,Y]),
-  Y1 is Y-1,
-  safe([X,Y1]).
+  X1 is X-1,
+  safe([X1,Y]).
 %% peekForward([X,Y],180):-
 %%   safe([X-1,Y]).
 %% peekForward([X,Y],270) :-
@@ -157,8 +161,8 @@ peekForward:-
 updateOrientation(NextAction) :- 
   orientation(Orient),
   format("orientation is ~d \n", [Orient]),
-  (NextAction = turnright -> NewOrientation = (Orient - 90) mod 360;
-    (NextAction = turnleft -> NewOrientation = (Orient + 90) mod 360;
+  (NextAction = turnright -> NewOrientation is (Orient - 90) mod 360;
+    (NextAction = turnleft -> NewOrientation is (Orient + 90) mod 360;
    NewOrientation = Orient)),
   format("NextAction is ~w \n", [NextAction]), 
   format("New orientation is ~d \n", [NewOrientation]),
