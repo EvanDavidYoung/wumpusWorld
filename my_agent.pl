@@ -28,7 +28,7 @@
 :- dynamic(noPit/1).
 :- dynamic(isNotPit/1).
 :- dynamic(breeze/1).
-:- dynamic(hasGold/1).
+:- dynamic(hasGold/0).
 :- dynamic(updateOrientation/1).
 :- dynamic(updateCoordinate/1).
 :- dynamic(safe/1).
@@ -76,41 +76,82 @@ next_action([H|T], H):-
   assert(path(T)).
 %run_agent(Percept,Action):-
 % Percept : [_,_,_,_,_]
+
+% if you are in (1,1) and have the gold:  
+run_agent([no,no,no,no,no], climb):-
+  currentPos([1,1]),
+  hasGold,
+  display_world,   
+  updateSafe.
+
+% if you bump into something: 
+  % currentPos is an invalid spot 
+  % previousPos is actual currentPosition 
+%% run_agent([_,_,_,yes,_], turnright):-
+%%   currentPos([X,Y]),
+%%   prevPos([X1,Y1]),
+%%   retract(safe([X,Y])),
+%%   updateOrientation(turnright),
+%%   assert(currentPos([X1,Y1])),
+%%   retract(currentPos([X,Y])),
+%%   display_world.
+
 % if the spot is safe: assert cells next to it are safe 
 run_agent([no,no,no,no,no], goforward):-
   currentPos([X,Y]),
   display_world,   
   updateSafe,
   updateCoordinate(goforward).
+
+
 % if the spot has a breeze: 
 %   if you can move forward and you won't die, move forward. 
-run_agent([_,yes,no,no,no], goforward):-
+run_agent([no,yes,no,no,no], goforward):-
   currentPos([X,Y]),
   peekForward,
   display_world,   
   updateCoordinate(goforward).
 % if the spot has a breeze: 
 %   if you die if you move forward, turn. 
-run_agent([_,yes,no,_,no], Action):-
+run_agent([no,yes,no,_,no], Action):-
   currentPos([X,Y]),
   \+peekForward,
   random_turn(Action),
   display_world,   
   updateOrientation(Action),
   updateCoordinate(Action).
+
 % if the spot has a stench and wumpus is alive: 
+%   if you can move forward and you won't die, move forward. 
+run_agent([yes,_,no,_,_], Action):-
+  wumpusAlive,
+  currentPos([X,Y]),
+  \+peekForward,
+  random_move(Action),
+  display_world,   
+  updateOrientation(Action),
+  updateCoordinate(Action).
+% if the spot has a stench and wumpus is alive: 
+%   if you can't move forward, turn.  
+run_agent([yes,_,no,_,_], Action):-
+  wumpusAlive,
+  currentPos([X,Y]),
+  peekForward,
+  random_turn(Action),
+  display_world,   
+  updateOrientation(Action),
+  updateCoordinate(Action).
 
 % if there is gold, grab the gold. 
 run_agent([_,_,yes,_,_], grab):-
   currentPos([X,Y]),
   display_world,   
+  assertOnce(hasGold),
   updateCoordinate(grab).
 
 
 
 updateAgent(Percept,Action) :- 
-  %% (updateSafe(Percept);format('')),
-  %% (updateVisited(Percept);format('')),
   updateOrientation(NextAction),
   updateCoordinate(NextAction).
 
@@ -227,6 +268,7 @@ coordPrint(X,Y,NextAction,Orientation) :-
   format("Orientation is ~d \n", [Orientation]),
   format("New coordinate is (~d,~d)", [X,Y]).
 resetAgent() :- 
+  retractall(hasGold),
   retractall(currentPos([X,Y])),
   retractall(prevPos(A,B)),
   retractall(orientation(C)).
