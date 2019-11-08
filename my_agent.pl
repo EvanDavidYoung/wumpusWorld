@@ -20,7 +20,7 @@
 :- dynamic(prevPos/1).
 :- dynamic(orientation/1).
 :- dynamic(wumpusAlive/0).
-:- dynamic(hasArrow/1).
+:- dynamic(hasArrow/0).
 :- dynamic(visited/1).
 :- dynamic(safeUnvisited/2).
 :- dynamic(updateSafe/0).
@@ -41,6 +41,7 @@ init_agent:-
   assert(wumpusAlive),
   assert(safe([1,2])),
   assert(safe([2,1])),
+  assert(hasArrow),
 	assert(currentPos([1,1])),
   assert(visited([1,1])),
 	assert(prevPos([1,1])),
@@ -78,15 +79,17 @@ next_action([H|T], H):-
 
 % if you are in (1,1) and have the gold:  
 run_agent([no,no,no,no,no], climb):-
+  format("Pick Up Gold \n"),
   currentPos([1,1]),
-  hasGold,
-  display_world,   
-  updateSafe.
+  hasGold,   
+  updateSafe,
+  display_world.
 
 % if you bump into something: 
   % currentPos is an invalid spot 
   % previousPos is actual currentPosition 
 run_agent([_,_,_,yes,_], turnright):-
+  format("bumped into wall \n"),
   currentPos(C),
   prevPos(P),
   retract(safe(C)),
@@ -96,57 +99,82 @@ run_agent([_,_,_,yes,_], turnright):-
   assert(currentPos(P)),
   display_world.
 
+
+% if the spot has a stench and wumpus is alive: 
+  % take the shot  
+run_agent([yes,_,no,_,_], shoot):-
+  format("take shot at wumpus if alive \n"),
+  wumpusAlive,
+  hasArrow,
+  currentPos([X,Y]),
+  \+peekForward,   
+  updateOrientation(shoot),
+  %% updateCoordinate(shoot),
+  retract(hasArrow),
+  display_world.
+%% % if the spot has a stench and wumpus is alive and you've taken your shot 
+%% %   if you can move forward and you won't die, move forward. 
+run_agent([yes,_,no,_,_], Action):-
+  format("if stench and already taken shot and not safe: turn \n"),
+  wumpusAlive,
+  \+hasArrow,
+  currentPos([X,Y]),
+  \+peekForward,
+  random_turn(Action),   
+  updateOrientation(Action),
+  updateCoordinate(Action),
+  display_world.
+%% % if the spot has a stench and wumpus is alive and you've taken your shot 
+%   if you can't move forward, turn.  
+run_agent([yes,_,no,_,_], Action):-
+  format("if stench and already taken shot and not safe: random move \n"),
+  wumpusAlive,
+  \+hasArrow,
+  currentPos([X,Y]),
+  peekForward,
+  random_move(Action),   
+  updateOrientation(Action),
+  updateCoordinate(Action),
+  display_world.
+
+
+
+
 % if the spot is safe: assert cells next to it are safe 
 run_agent([no,no,no,no,no], goforward):-
-  currentPos([X,Y]),
-  display_world,   
+  format("completely safe: update safe cells and goforward \n"),
+  currentPos([X,Y]),   
   updateSafe,
-  updateCoordinate(goforward).
+  updateCoordinate(goforward),
+  display_world.
 
 
 % if the spot has a breeze: 
 %   if you can move forward and you won't die, move forward. 
 run_agent([no,yes,no,no,no], goforward):-
+  format("spot has breeze and forward is safe: move forward \n"),
   currentPos([X,Y]),
-  peekForward,
-  display_world,   
-  updateCoordinate(goforward).
+  peekForward,   
+  updateCoordinate(goforward),
+  display_world.
 % if the spot has a breeze: 
 %   if you die if you move forward, turn. 
 run_agent([no,yes,no,no,no], Action):-
+  format("spot has breeze and forward is not safe: random turn \n"),
   currentPos([X,Y]),
   \+peekForward,
-  random_turn(Action),
-  display_world,   
+  random_turn(Action),   
   updateOrientation(Action),
-  updateCoordinate(Action).
+  updateCoordinate(Action),
+  display_world.
 
-% if the spot has a stench and wumpus is alive: 
-%   if you can move forward and you won't die, move forward. 
-run_agent([yes,_,no,_,_], Action):-
-  wumpusAlive,
-  currentPos([X,Y]),
-  \+peekForward,
-  random_move(Action),
-  display_world,   
-  updateOrientation(Action),
-  updateCoordinate(Action).
-% if the spot has a stench and wumpus is alive: 
-%   if you can't move forward, turn.  
-run_agent([yes,_,no,_,_], Action):-
-  wumpusAlive,
-  currentPos([X,Y]),
-  peekForward,
-  random_turn(Action),
-  display_world,   
-  updateOrientation(Action),
-  updateCoordinate(Action).
 
 % if there is gold, grab the gold. 
 run_agent([_,_,yes,_,_], grab):-
-  currentPos([X,Y]),
-  display_world,   
-  assertOnce(hasGold).
+  format("grab the gold \n"),
+  currentPos([X,Y]),   
+  assertOnce(hasGold),
+  display_world.
 
 
 
@@ -227,6 +255,7 @@ updateCoordinate(NextAction) :-
   orientation(Orient),
   currentPos([X,Y]),
   (NextAction = goforward -> updateCoordinateAux(Orient,NextAction); format("statement \n")),
+  %% format("New coordinate is (~d,~d)\n", [X,Y]),
   (retractall(prevPos(Z)); format("")),
   (assert(prevPos([X,Y])); format("")).
 
