@@ -20,7 +20,6 @@
 :- dynamic(prevPos/1).
 :- dynamic(orientation/1).
 :- dynamic(wumpusAlive/0).
-:- dynamic(/1).
 :- dynamic(hasArrow/1).
 :- dynamic(visited/1).
 :- dynamic(safeUnvisited/2).
@@ -87,14 +86,15 @@ run_agent([no,no,no,no,no], climb):-
 % if you bump into something: 
   % currentPos is an invalid spot 
   % previousPos is actual currentPosition 
-%% run_agent([_,_,_,yes,_], turnright):-
-%%   currentPos([X,Y]),
-%%   prevPos([X1,Y1]),
-%%   retract(safe([X,Y])),
-%%   updateOrientation(turnright),
-%%   assert(currentPos([X1,Y1])),
-%%   retract(currentPos([X,Y])),
-%%   display_world.
+run_agent([_,_,_,yes,_], turnright):-
+  currentPos(C),
+  prevPos(P),
+  retract(safe(C)),
+  updateOrientation(turnright),
+  retract(safe(C)),
+  retractall(currentPos(C)),
+  assert(currentPos(P)),
+  display_world.
 
 % if the spot is safe: assert cells next to it are safe 
 run_agent([no,no,no,no,no], goforward):-
@@ -113,7 +113,7 @@ run_agent([no,yes,no,no,no], goforward):-
   updateCoordinate(goforward).
 % if the spot has a breeze: 
 %   if you die if you move forward, turn. 
-run_agent([no,yes,no,_,no], Action):-
+run_agent([no,yes,no,no,no], Action):-
   currentPos([X,Y]),
   \+peekForward,
   random_turn(Action),
@@ -146,8 +146,7 @@ run_agent([yes,_,no,_,_], Action):-
 run_agent([_,_,yes,_,_], grab):-
   currentPos([X,Y]),
   display_world,   
-  assertOnce(hasGold),
-  updateCoordinate(grab).
+  assertOnce(hasGold).
 
 
 
@@ -250,7 +249,7 @@ updateCoordinateAux(Orientation,NextAction) :-
 updateCoordinateAux(Orientation,NextAction) :- 
   Orientation =:= 180, 
   currentPos([X,Y]),
-  (NextAction = goforward -> NewX is X-1, NewY is Y+1; 
+  (NextAction = goforward -> NewX is X-1, NewY is Y; 
     NewX = X, NewY = Y),
   retractall(currentPos([X,Y])),
   assert(currentPos([NewX,NewY])),
@@ -290,3 +289,5 @@ random_move(E) :-
     (E = goforward , Value>50);
     (E = turnleft , Value<50)
   ).
+
+%% manhattan(X1,Y1,X2,Y2,Result) :- 
