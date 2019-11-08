@@ -79,24 +79,25 @@ next_action([H|T], H):-
 
 % if you are in (1,1) and have the gold:  
 run_agent([no,no,no,no,no], climb):-
-  format("Pick Up Gold \n"),
+  format("Get out of here \n"),
   currentPos([1,1]),
   hasGold,   
   updateSafe,
-  display_world.
+  display_world,!.
 
+% if you bump into a wall : 
+run_agent([_,_,_,yes,_], _):-
+  retractall(currentPos(_, _)), 
+  prevPos(X, Y),
+  assert(currentPos(X, Y)), 
+  fail.
 % if you bump into something: 
   % currentPos is an invalid spot 
   % previousPos is actual currentPosition 
-run_agent([_,_,_,yes,_], turnright):-
+run_agent([_,_,_,yes,_], Action):-
   format("bumped into wall \n"),
-  currentPos(C),
-  prevPos(P),
-  retract(safe(C)),
-  updateOrientation(turnright),
-  retract(safe(C)),
-  retractall(currentPos(C)),
-  assert(currentPos(P)),
+  updateOrientation(Action),
+  random_turn(Action),
   display_world.
 
 
@@ -111,7 +112,7 @@ run_agent([yes,_,no,_,_], shoot):-
   updateOrientation(shoot),
   %% updateCoordinate(shoot),
   retract(hasArrow),
-  display_world.
+  display_world,!.
 %% % if the spot has a stench and wumpus is alive and you've taken your shot 
 %% %   if you can move forward and you won't die, move forward. 
 run_agent([yes,_,no,_,_], Action):-
@@ -123,7 +124,7 @@ run_agent([yes,_,no,_,_], Action):-
   random_turn(Action),   
   updateOrientation(Action),
   updateCoordinate(Action),
-  display_world.
+  display_world,!.
 %% % if the spot has a stench and wumpus is alive and you've taken your shot 
 %   if you can't move forward, turn.  
 run_agent([yes,_,no,_,_], Action):-
@@ -135,7 +136,7 @@ run_agent([yes,_,no,_,_], Action):-
   random_move(Action),   
   updateOrientation(Action),
   updateCoordinate(Action),
-  display_world.
+  display_world,!.
 
 
 
@@ -146,7 +147,7 @@ run_agent([no,no,no,no,no], goforward):-
   currentPos([X,Y]),   
   updateSafe,
   updateCoordinate(goforward),
-  display_world.
+  display_world,!.
 
 
 % if the spot has a breeze: 
@@ -156,7 +157,7 @@ run_agent([no,yes,no,no,no], goforward):-
   currentPos([X,Y]),
   peekForward,   
   updateCoordinate(goforward),
-  display_world.
+  display_world,!.
 % if the spot has a breeze: 
 %   if you die if you move forward, turn. 
 run_agent([no,yes,no,no,no], Action):-
@@ -166,7 +167,7 @@ run_agent([no,yes,no,no,no], Action):-
   random_turn(Action),   
   updateOrientation(Action),
   updateCoordinate(Action),
-  display_world.
+  display_world,!.
 
 
 % if there is gold, grab the gold. 
@@ -174,7 +175,7 @@ run_agent([_,_,yes,_,_], grab):-
   format("grab the gold \n"),
   currentPos([X,Y]),   
   assertOnce(hasGold),
-  display_world.
+  display_world,!.
 
 
 
