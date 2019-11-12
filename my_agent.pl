@@ -14,6 +14,7 @@
 % ok
 % safe 
 :- load_files([utils]).  % Basic utilities
+:- dynamic(updateBump/0).
 :- dynamic(peekForward/0).
 :- dynamic(peekForward/1).
 :- dynamic(currentPos/1).
@@ -46,7 +47,7 @@ init_agent:-
   assert(visited([1,1])),
 	assert(prevPos([1,1])),
 	assert(orientation(0)),
-  assert(path([goforward,turnleft,goforward,goforward,goforward,goforward,goforward])),
+  assert(path([goforward,turnleft,goforward,goforward,goforward,goforward,goforward,goforward,goforward,goforward,goforward,goforward,turnleft,goforward])),
 	format('\n=====================================================\n'),
 	format('This is init_agent:\n\tIt gets called once, use it for your initialization\n\n'),
 	format('=====================================================\n\n').
@@ -74,11 +75,26 @@ init_agent:-
 next_action([H|T], H):- 
   retract(path([H|T])),
   assert(path(T)).
-%run_agent(Percept,Action):-
-% Percept : [_,_,_,_,_]
 
-% if you are in (1,1) and have the gold:  
-run_agent(Percept, Action):-
+updateBump:- 
+  retractall(currentPos(_)), 
+  prevPos(X),
+  assert(currentPos(X)).
+
+run_agent([_,_,yes,_,_], grab):-
+  format("got the gold \n"),
+  %% updateOrientation(Action),
+  updateCoordinate(grab),
+  assert(hasGold),
+  display_world,!.
+run_agent([_,_,_,yes,_], Action):-
+  format("bumped into wall \n"),
+  updateBump,
+  next_action(Actions,Action),
+  updateOrientation(Action),
+  updateCoordinate(Action),
+  display_world.
+run_agent([_,_,_,no,_], Action):-
   display_world,
   next_action(Actions,Action),
   updateOrientation(Action),
@@ -140,4 +156,8 @@ resetAgent() :-
   retractall(prevPos(A,B)),
   retractall(orientation(C)).
 
+assertOnce(Fact):-
+    \+( Fact ),!,         % \+ is a NOT operator.
+    assert(Fact).
+assertOnce(_).
 
