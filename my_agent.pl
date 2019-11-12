@@ -46,7 +46,7 @@ init_agent:-
   assert(visited([1,1])),
 	assert(prevPos([1,1])),
 	assert(orientation(0)),
-  assert(path([goforward,turnleft])),
+  assert(path([goforward,turnleft,goforward,goforward,goforward,goforward,goforward])),
 	format('\n=====================================================\n'),
 	format('This is init_agent:\n\tIt gets called once, use it for your initialization\n\n'),
 	format('=====================================================\n\n').
@@ -78,154 +78,12 @@ next_action([H|T], H):-
 % Percept : [_,_,_,_,_]
 
 % if you are in (1,1) and have the gold:  
-run_agent([no,no,no,no,no], climb):-
-  format("Get out of here \n"),
-  currentPos([1,1]),
-  hasGold,   
-  updateSafe,
-  display_world,!.
-
-% if you bump into a wall : 
-run_agent([_,_,_,yes,_], _):-
-  retractall(currentPos(_, _)), 
-  prevPos(X, Y),
-  assert(currentPos(X, Y)), 
-  fail.
-% if you bump into something: 
-  % currentPos is an invalid spot 
-  % previousPos is actual currentPosition 
-run_agent([_,_,_,yes,_], Action):-
-  format("bumped into wall \n"),
+run_agent(Percept, Action):-
+  display_world,
+  next_action(Actions,Action),
   updateOrientation(Action),
-  random_turn(Action),
-  display_world.
+  updateCoordinate(Action).
 
-
-% if the spot has a stench and wumpus is alive: 
-  % take the shot  
-run_agent([yes,_,no,_,_], shoot):-
-  format("take shot at wumpus if alive \n"),
-  wumpusAlive,
-  hasArrow,
-  currentPos([X,Y]),
-  \+peekForward,   
-  updateOrientation(shoot),
-  %% updateCoordinate(shoot),
-  retract(hasArrow),
-  display_world,!.
-%% % if the spot has a stench and wumpus is alive and you've taken your shot 
-%% %   if you can move forward and you won't die, move forward. 
-run_agent([yes,_,no,_,_], Action):-
-  format("if stench and already taken shot and not safe: turn \n"),
-  wumpusAlive,
-  \+hasArrow,
-  currentPos([X,Y]),
-  \+peekForward,
-  random_turn(Action),   
-  updateOrientation(Action),
-  updateCoordinate(Action),
-  display_world,!.
-%% % if the spot has a stench and wumpus is alive and you've taken your shot 
-%   if you can't move forward, turn.  
-run_agent([yes,_,no,_,_], Action):-
-  format("if stench and already taken shot and not safe: random move \n"),
-  wumpusAlive,
-  \+hasArrow,
-  currentPos([X,Y]),
-  peekForward,
-  random_move(Action),   
-  updateOrientation(Action),
-  updateCoordinate(Action),
-  display_world,!.
-
-
-
-
-% if the spot is safe: assert cells next to it are safe 
-run_agent([no,no,no,no,no], goforward):-
-  format("completely safe: update safe cells and goforward \n"),
-  currentPos([X,Y]),   
-  updateSafe,
-  updateCoordinate(goforward),
-  display_world,!.
-
-
-% if the spot has a breeze: 
-%   if you can move forward and you won't die, move forward. 
-run_agent([no,yes,no,no,no], goforward):-
-  format("spot has breeze and forward is safe: move forward \n"),
-  currentPos([X,Y]),
-  peekForward,   
-  updateCoordinate(goforward),
-  display_world,!.
-% if the spot has a breeze: 
-%   if you die if you move forward, turn. 
-run_agent([no,yes,no,no,no], Action):-
-  format("spot has breeze and forward is not safe: random turn \n"),
-  currentPos([X,Y]),
-  \+peekForward,
-  random_turn(Action),   
-  updateOrientation(Action),
-  updateCoordinate(Action),
-  display_world,!.
-
-
-% if there is gold, grab the gold. 
-run_agent([_,_,yes,_,_], grab):-
-  format("grab the gold \n"),
-  currentPos([X,Y]),   
-  assertOnce(hasGold),
-  display_world,!.
-
-
-
-updateAgent(Percept,Action) :- 
-  updateOrientation(NextAction),
-  updateCoordinate(NextAction).
-
-
-
-
-
-
-% if coordinate is not a pit: assert that it is not a pit 
-isNotPit(P1) :- 
-  visited(P1).
-isNotPit(P1) :- 
-  neighbors(P1,P2),
-  \+breeze(P2),
-  visited(P2).
-
-
-
-peekForward:-
-  orientation(O),
-  O =:= 0, 
-  currentPos([X,Y]),
-  X1 is X+1,
-  safe([X1,Y]).
-peekForward:-
-  orientation(O),
-  O =:= 90 ,
-  currentPos([X,Y]),
-  Y1 is Y+1,
-  safe([X,Y1]).
-peekForward:-
-  orientation(O),
-  O =:= 180, 
-  currentPos([X,Y]),
-  Y1 is Y-1,
-  safe([X,Y1]).
-peekForward:-
-  orientation(O),
-  O =:= 270, 
-  currentPos([X,Y]),
-  X1 is X-1,
-  safe([X1,Y]).
-%% peekForward([X,Y],180):-
-%%   safe([X-1,Y]).
-%% peekForward([X,Y],270) :-
-%%   safe([X,Y-1]).
 
 updateOrientation(NextAction) :- 
   orientation(Orient),
@@ -238,86 +96,48 @@ updateOrientation(NextAction) :-
   retractall(orientation(Orient)),
   assert(orientation(NewOrientation)).
 
-neighbors([X,Y],[X1,Y]) :-
-  X1 is X-1.
-neighbors([X,Y],[X1,Y]) :-
-  X1 is X+1.
-neighbors([X,Y],[X,Y1]) :-
-  Y1 is Y-1.
-neighbors([X,Y],[X,Y1]) :-
-  Y1 is Y+1.
-
-updateSafe :- 
-  currentPos([X,Y]),
-  neighbors([X,Y],Z),
-  assertOnce(safe(Z)).
-
 updateCoordinate(NextAction) :- 
   orientation(Orient),
   currentPos([X,Y]),
-  (NextAction = goforward -> updateCoordinateAux(Orient,NextAction); format("statement \n")),
-  %% format("New coordinate is (~d,~d)\n", [X,Y]),
-  (retractall(prevPos(Z)); format("")),
-  (assert(prevPos([X,Y])); format("")).
+  updateCoordinateAux(X,Y,NewX,NewY,NextAction),
+  retractall(currentPos(P)),
+  retractall(prevPos(P)),
+  assert(prevPos([X,Y])),
+  assert(currentPos([NewX,NewY])),
+  format("UpdatedCoordinate is [~d,~d]\n",[NewX,NewY]).
 
-updateCoordinateAux(Orientation,NextAction) :- 
-  Orientation =:= 0,
-  currentPos([X,Y]),
-  (NextAction = goforward -> NewX is X+1, NewY is Y; 
-    NewX = X, NewY = Y),
-  retractall(currentPos([X,Y])),
-  assert(currentPos([NewX,NewY])),
-  coordPrint(NewX,NewY,NextAction,0).
-updateCoordinateAux(Orientation,NextAction) :- 
-  Orientation =:= 90,
-  currentPos([X,Y]),
-  (NextAction = goforward -> NewX is X, NewY is Y+1; 
-    NewX = X, NewY = Y),
-  retractall(currentPos([X,Y])),
-  assert(currentPos([NewX,NewY])),
-  coordPrint(NewX,NewY,NextAction,90).
-updateCoordinateAux(Orientation,NextAction) :- 
-  Orientation =:= 180, 
-  currentPos([X,Y]),
-  (NextAction = goforward -> NewX is X-1, NewY is Y; 
-    NewX = X, NewY = Y),
-  retractall(currentPos([X,Y])),
-  assert(currentPos([NewX,NewY])),
-  coordPrint(NewX,NewY,NextAction,180).
-updateCoordinateAux(Orientation,NextAction) :- 
-  Orientation =:= 270,
-  currentPos([X,Y]),
-  (NextAction = goforward -> NewX is X, NewY is Y-1; 
-    NewX = X, NewY = Y),
-  retractall(currentPos([X,Y])),
-  assert(currentPos([NewX,NewY])),
-  coordPrint(NewX,NewY,NextAction,270).
-coordPrint(X,Y,NextAction,Orientation) :- 
-  format("Next Action is ~w \n", [NextAction]),
-  format("Orientation is ~d \n", [Orientation]),
-  format("New coordinate is (~d,~d)", [X,Y]).
+updateCoordinateAux(X,Y,NewX,NewY,NextAction) :- 
+  NextAction \= goforward,
+  NewX is X, 
+  NewY is Y,!.
+updateCoordinateAux(X,Y,NewX,NewY,NextAction) :- 
+  orientation(O),
+  O =:= 0,
+  NextAction = goforward,
+  NewX is X + 1,
+  NewY is Y,!.
+updateCoordinateAux(X,Y,NewX,NewY,NextAction) :- 
+  orientation(O),
+  O =:= 90,
+  NextAction = goforward,
+  NewX is X,
+  NewY is Y + 1,!.
+updateCoordinateAux(X,Y,NewX,NewY,NextAction) :- 
+  orientation(O),
+  O =:= 180,
+  NextAction = goforward,
+  NewX is X - 1,!,
+  NewY is Y.
+updateCoordinateAux(X,Y,NewX,NewY,NextAction) :- 
+  orientation(O),
+  O =:= 270,
+  NextAction = goforward,
+  NewX is X,
+  NewY is Y - 1,!.
 resetAgent() :- 
   retractall(hasGold),
   retractall(currentPos([X,Y])),
   retractall(prevPos(A,B)),
   retractall(orientation(C)).
 
-assertOnce(Fact):-
-    \+( Fact ),!,         % \+ is a NOT operator.
-    assert(Fact).
-assertOnce(_).
 
-random_turn(E) :- 
-  random2(100,Value),
-  (
-    (E = turnleft , Value>50);
-    (E = turnright , Value<50)
-  ).
-random_move(E) :- 
-  random2(100,Value),
-  (
-    (E = goforward , Value>50);
-    (E = turnleft , Value<50)
-  ).
-
-%% manhattan(X1,Y1,X2,Y2,Result) :- 
