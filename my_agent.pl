@@ -14,6 +14,7 @@
 % ok
 % safe 
 :- load_files([utils]).  % Basic utilities
+:- dynamic fact/1.
 :- dynamic(updateBump/0).
 :- dynamic(peekForward/0).
 :- dynamic(peekForward/1).
@@ -87,10 +88,7 @@ updateBump:-
   (O = 0 -> format("O is 0 \n"), XMAX is X+1, retractall(xmax(EXES)), asserta(xmax(XMAX)); format("O is not 0 \n")),
   assert(currentPos([X,Y])).
 
-run_agent([_,_,_,_,yes], Action):-
-  format("Wumpus is dead! \n"),
-  retract(wumpusAlive),
-  fail.
+
 
 
 % if you are in (1,1) and have the gold:  
@@ -98,7 +96,7 @@ run_agent([no,no,no,no,no], climb):-
   format("Get out of here \n"),
   currentPos([1,1]),
   hasGold,   
-  updateSafe,
+  ignore((updateSafe,false)),
   display_world,!.
 
 run_agent([_,_,yes,_,_], grab):-
@@ -107,6 +105,16 @@ run_agent([_,_,yes,_,_], grab):-
   updateCoordinate(grab),
   assert(hasGold),
   display_world,!.
+% updat
+run_agent([_,no,_,_,yes], goforward):-
+  format("Wumpus is dead! \n"),
+  retract(wumpusAlive),
+  ignore((updateSafe,false)),
+  updateOrientation(goforward),
+  updateCoordinate(goforward),
+  display_world,
+  !.
+
 % if the spot has a stench and wumpus is alive: 
   % take the shot  
 run_agent([yes,_,_,_,_], shoot):-
@@ -119,8 +127,8 @@ run_agent([yes,_,_,_,_], shoot):-
   display_world,!.
 run_agent([no,no,no,no,no], Action):-
   %% format("Safe has been updated \n"),
-  updateSafe,
-  next_action(Actions,Action),
+  ignore((updateSafe,false)),
+  random_move(Actions,Action),
   updateOrientation(Action),
   updateCoordinate(Action),
   display_world,!.
@@ -243,13 +251,13 @@ random_turn(E) :-
   (
     (E = turnleft , Value>50);
     (E = turnright , Value<50)
-  ).
+  ),!.
 random_move(E) :- 
   random2(100,Value),
   (
     (E = goforward , Value>50);
     (E = turnleft , Value<50)
-  ).
+  ),!.
 
 neighbors([X,Y],[X1,Y]) :-
   X1 is X-1.
@@ -261,9 +269,11 @@ neighbors([X,Y],[X,Y1]) :-
   Y1 is Y+1.
 
 updateSafe :- 
+  format("Update Safe \n"),
   currentPos([X,Y]),
-  neighbors([X,Y],Z),
-  assertOnce(safe(Z)).
+  neighbors([X,Y],[X1,Y1]),
+  format("Asserting [~d,~d] \n",[X1,Y1]),
+  assertOnce(safe([X1,Y1])).
 
 assertOnce(Fact):-
     \+( Fact ),!,         % \+ is a NOT operator.
