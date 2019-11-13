@@ -17,6 +17,8 @@
 :- dynamic(updateBump/0).
 :- dynamic(peekForward/0).
 :- dynamic(peekForward/1).
+:- dynamic(xMax/1).
+:- dynamic(yMax/1).
 :- dynamic(currentPos/1).
 :- dynamic(prevPos/1).
 :- dynamic(orientation/1).
@@ -39,6 +41,8 @@ init_agent:-
   assert(pit(_,_)),
   retract(pit(1,1)),
   assert(safe([1,1])),
+  assert(xMax(10000)),
+  assert(yMax(10000)),
   assert(wumpusAlive),
   assert(safe([1,2])),
   assert(safe([2,1])),
@@ -47,7 +51,7 @@ init_agent:-
   assert(visited([1,1])),
 	assert(prevPos([1,1])),
 	assert(orientation(0)),
-  assert(path([goforward,turnleft,goforward,goforward,goforward,goforward,goforward,goforward,goforward,goforward,goforward,goforward,turnleft,goforward])),
+  assert(path([turnleft,goforward,turnright])),
 	format('\n=====================================================\n'),
 	format('This is init_agent:\n\tIt gets called once, use it for your initialization\n\n'),
 	format('=====================================================\n\n').
@@ -75,11 +79,27 @@ init_agent:-
 next_action([H|T], H):- 
   retract(path([H|T])),
   assert(path(T)).
-
 updateBump:- 
+  orientation(O),
   retractall(currentPos(_)), 
-  prevPos(X),
-  assert(currentPos(X)).
+  prevPos([X,Y]),
+  (O = 90 -> format("O is 90 \n"), YMAX is Y+1, retractall(ymax(WYES)), asserta(ymax(YMAX)); format("O is not 90 \n")),
+  (O = 0 -> format("O is 0 \n"), XMAX is X+1, retractall(xmax(EXES)), asserta(xmax(XMAX)); format("O is not 0 \n")),
+  assert(currentPos([X,Y])).
+
+run_agent([_,_,_,_,yes], Action):-
+  format("Wumpus is dead! \n"),
+  retract(wumpusAlive),
+  fail.
+
+
+% if you are in (1,1) and have the gold:  
+run_agent([no,no,no,no,no], climb):-
+  format("Get out of here \n"),
+  currentPos([1,1]),
+  hasGold,   
+  updateSafe,
+  display_world,!.
 
 run_agent([_,_,yes,_,_], grab):-
   format("got the gold \n"),
@@ -87,6 +107,24 @@ run_agent([_,_,yes,_,_], grab):-
   updateCoordinate(grab),
   assert(hasGold),
   display_world,!.
+% if the spot has a stench and wumpus is alive: 
+  % take the shot  
+run_agent([yes,_,_,_,_], shoot):-
+  format("take shot at wumpus if alive \n"),
+  wumpusAlive,
+  hasArrow,
+  updateOrientation(shoot),
+  updateCoordinate(shoot),
+  retract(hasArrow),
+  display_world,!.
+run_agent([no,no,no,no,no], Action):-
+  %% format("Safe has been updated \n"),
+  updateSafe,
+  next_action(Actions,Action),
+  updateOrientation(Action),
+  updateCoordinate(Action),
+  display_world,!.
+
 run_agent([_,_,_,yes,_], Action):-
   format("bumped into wall \n"),
   updateBump,
@@ -106,7 +144,7 @@ updateOrientation(NextAction) :-
   format("orientation is ~d \n", [Orient]),
   (NextAction = turnright -> NewOrientation is (Orient - 90) mod 360;
     (NextAction = turnleft -> NewOrientation is (Orient + 90) mod 360;
-   NewOrientation = Orient)),
+   NewOrientation is Orient)),
   format("NextAction is ~w \n", [NextAction]), 
   format("New orientation is ~d \n", [NewOrientation]),
   retractall(orientation(Orient)),
@@ -150,14 +188,90 @@ updateCoordinateAux(X,Y,NewX,NewY,NextAction) :-
   NextAction = goforward,
   NewX is X,
   NewY is Y - 1,!.
-resetAgent() :- 
-  retractall(hasGold),
-  retractall(currentPos([X,Y])),
-  retractall(prevPos(A,B)),
-  retractall(orientation(C)).
+
+peekForward:-
+  orientation(O),
+  xMax(XMAX),
+  yMax(YMAX),
+  O =:= 0, 
+  currentPos([X,Y]),
+  X1 is X+1,
+  X+1 > 0, 
+  X+1 < XMAX,
+  Y+1 > 0, 
+  Y+1 < YMAX,
+  safe([X1,Y]).
+peekForward:-
+  orientation(O),
+  xMax(XMAX),
+  yMax(YMAX),
+  O =:= 90 ,
+  currentPos([X,Y]),
+  Y1 is Y+1,
+  X+1 > 0, 
+  X+1 < XMAX,
+  Y+1 > 0, 
+  Y+1 < YMAX,
+  safe([X,Y1]).
+peekForward:-
+  orientation(O),
+  xMax(XMAX),
+  yMax(YMAX),
+  O =:= 180, 
+  currentPos([X,Y]),
+  Y1 is Y-1,
+  X+1 > 0, 
+  X+1 < XMAX,
+  Y+1 > 0, 
+  Y+1 < YMAX,
+  safe([X,Y1]).
+peekForward:-
+  orientation(O),
+  xMax(XMAX),
+  yMax(YMAX),
+  O =:= 270, 
+  currentPos([X,Y]),
+  X1 is X-1,
+  X+1 > 0, 
+  X+1 < XMAX,
+  Y+1 > 0, 
+  Y+1 < YMAX,
+  safe([X1,Y]).
+
+random_turn(E) :- 
+  random2(100,Value),
+  (
+    (E = turnleft , Value>50);
+    (E = turnright , Value<50)
+  ).
+random_move(E) :- 
+  random2(100,Value),
+  (
+    (E = goforward , Value>50);
+    (E = turnleft , Value<50)
+  ).
+
+neighbors([X,Y],[X1,Y]) :-
+  X1 is X-1.
+neighbors([X,Y],[X1,Y]) :-
+  X1 is X+1.
+neighbors([X,Y],[X,Y1]) :-
+  Y1 is Y-1.
+neighbors([X,Y],[X,Y1]) :-
+  Y1 is Y+1.
+
+updateSafe :- 
+  currentPos([X,Y]),
+  neighbors([X,Y],Z),
+  assertOnce(safe(Z)).
 
 assertOnce(Fact):-
     \+( Fact ),!,         % \+ is a NOT operator.
     assert(Fact).
 assertOnce(_).
 
+resetAgent() :- 
+  retractall(hasGold),
+  retractall(currentPos([X,Y])),
+  retractall(prevPos(A,B)),
+  retractall(orientation(C)).

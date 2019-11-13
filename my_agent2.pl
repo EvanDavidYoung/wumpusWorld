@@ -103,7 +103,7 @@ run_agent([_,_,_,yes,_], Action):-
 
 % if the spot has a stench and wumpus is alive: 
   % take the shot  
-run_agent([yes,_,no,_,_], shoot):-
+run_agent([yes,_,_,_,_], shoot):-
   format("take shot at wumpus if alive \n"),
   wumpusAlive,
   hasArrow,
