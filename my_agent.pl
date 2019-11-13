@@ -93,9 +93,9 @@ updateBump:-
 
 % if you are in (1,1) and have the gold:  
 run_agent([no,no,no,no,no], climb):-
-  format("Get out of here \n"),
   currentPos([1,1]),
   hasGold,   
+  format("Get out of here \n"),
   ignore((updateSafe,false)),
   display_world,!.
 
@@ -115,36 +115,106 @@ run_agent([_,no,_,_,yes], goforward):-
   display_world,
   !.
 
-% if the spot has a stench and wumpus is alive: 
+% if the spot has a stench and you have an arrow and wumpus is alive: 
   % take the shot  
 run_agent([yes,_,_,_,_], shoot):-
-  format("take shot at wumpus if alive \n"),
   wumpusAlive,
   hasArrow,
+  format("take shot at wumpus if alive \n"),
   updateOrientation(shoot),
   updateCoordinate(shoot),
   retract(hasArrow),
   display_world,!.
-run_agent([no,no,no,no,no], Action):-
-  %% format("Safe has been updated \n"),
+% if the spot has a stench and wumpus is dead: 
+  % if there is no breeze: updateSafe.
+  % random move or random turn depending on which one is safe 
+run_agent([yes,no,_,no,_], Action):-
+  peekForward,
+  \+wumpusAlive,
+  \+hasArrow, 
   ignore((updateSafe,false)),
-  next_action(Actions,Action),
+  random_move(Action),
+  updateOrientation(Action),
+  updateCoordinate(Action),
+  display_world,!.
+run_agent([yes,no,_,no,_], Action):-
+  \+peekForward,
+  \+wumpusAlive,
+  \+hasArrow,
+  ignore((updateSafe,false)),
+  random_turn(Action),
+  updateOrientation(Action),
+  updateCoordinate(Action),
+  display_world,!.
+% if the spot has a stench and wumpus is dead: 
+  % if there is a breeze: do not update safe 
+  % random move or random turn depending on which one is safe 
+run_agent([yes,yes,_,no,_], Action):-
+  peekForward,
+  \+wumpusAlive,
+  \+hasArrow, 
+  random_move(Action),
+  updateOrientation(Action),
+  updateCoordinate(Action),
+  display_world,!.
+run_agent([yes,yes,_,no,_], Action):-
+  \+peekForward,
+  \+wumpusAlive,
+  \+hasArrow,
+  random_turn(Action),
   updateOrientation(Action),
   updateCoordinate(Action),
   display_world,!.
 
+run_agent([no,no,no,no,no], Action):-
+  %% format("Safe has been updated \n"),
+  peekForward,
+  ignore((updateSafe,false)),
+  random_move(Action),
+  updateOrientation(Action),
+  updateCoordinate(Action),
+  display_world,!.
+run_agent([no,no,no,no,no], Action):-
+  %% format("Safe has been updated \n"),
+  \+peekForward,
+  ignore((updateSafe,false)),
+  random_turn(Action),
+  updateOrientation(Action),
+  updateCoordinate(Action),
+  display_world,!.
+
+% bumped into a wall 
 run_agent([_,_,_,yes,_], Action):-
   format("bumped into wall \n"),
   updateBump,
-  next_action(Actions,Action),
+  random_turn(Action),
   updateOrientation(Action),
   updateCoordinate(Action),
-  display_world.
-run_agent([_,_,_,no,_], Action):-
-  display_world,
-  next_action(Actions,Action),
+  display_world,!.
+% if the spot has a breeze: 
+%   if you can move forward and you won't die, move forward. 
+run_agent([no,yes,no,no,no], goforward):-
+  peekForward,   
+  format("spot has breeze and forward is safe: move forward \n"),
+  currentPos([X,Y]),
+  updateCoordinate(goforward),
+  display_world,!.
+% if the spot has a breeze: 
+%   if you die if you move forward, turn. 
+run_agent([no,yes,no,no,no], Action):-
+  format("spot has breeze and forward is not safe: random turn \n"),
+  currentPos([X,Y]),
+  \+peekForward,
+  random_turn(Action),   
   updateOrientation(Action),
-  updateCoordinate(Action).
+  updateCoordinate(Action),
+  display_world,!.
+
+%% run_agent([_,_,_,no,_], Action):-
+%%   display_world,
+%%   random_move(Action),
+%%   updateOrientation(Action),
+%%   updateCoordinate(Action).
 
 
 updateOrientation(NextAction) :- 
@@ -206,8 +276,6 @@ peekForward:-
   X1 is X+1,
   X+1 > 0, 
   X+1 < XMAX,
-  Y+1 > 0, 
-  Y+1 < YMAX,
   safe([X1,Y]).
 peekForward:-
   orientation(O),
@@ -216,9 +284,6 @@ peekForward:-
   O =:= 90 ,
   currentPos([X,Y]),
   Y1 is Y+1,
-  X+1 > 0, 
-  X+1 < XMAX,
-  Y+1 > 0, 
   Y+1 < YMAX,
   safe([X,Y1]).
 peekForward:-
@@ -227,24 +292,20 @@ peekForward:-
   yMax(YMAX),
   O =:= 180, 
   currentPos([X,Y]),
-  Y1 is Y-1,
-  X+1 > 0, 
-  X+1 < XMAX,
-  Y+1 > 0, 
-  Y+1 < YMAX,
-  safe([X,Y1]).
+  X1 is X-1,
+  X-1 > 0, 
+  X-1 < XMAX,
+  safe([X1,Y]).
 peekForward:-
   orientation(O),
   xMax(XMAX),
   yMax(YMAX),
   O =:= 270, 
   currentPos([X,Y]),
-  X1 is X-1,
-  X+1 > 0, 
-  X+1 < XMAX,
-  Y+1 > 0, 
-  Y+1 < YMAX,
-  safe([X1,Y]).
+  Y1 is Y-1,
+  Y-1 > 0, 
+  Y-1 < YMAX,
+  safe([X,Y1]).
 
 random_turn(E) :- 
   random2(100,Value),
