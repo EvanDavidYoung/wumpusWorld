@@ -128,7 +128,7 @@ run_agent([yes,_,_,_,_], shoot):-
 run_agent([no,no,no,no,no], Action):-
   %% format("Safe has been updated \n"),
   ignore((updateSafe,false)),
-  random_move(Actions,Action),
+  next_action(Actions,Action),
   updateOrientation(Action),
   updateCoordinate(Action),
   display_world,!.
